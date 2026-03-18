@@ -7,4 +7,19 @@
     <AssemblyName>SystemProgramming</AssemblyName>
     <RootNamespace>SystemProgramming</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="TestProgram/**/*.cs" />
+    <Compile Remove="TestProgram/obj/**/*.cs" />
+    <Compile Remove="CalculatorClient/**/*.cs" />
+    <Compile Remove="CalculatorClient/obj/**/*.cs" />
+    <EmbeddedResource Remove="TestProgram/**" />
+    <EmbeddedResource Remove="CalculatorClient/**" />
+    <None Remove="TestProgram/**" />
+    <None Remove="CalculatorClient/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="NativeLibrary/build/libcalculator.so" Link="libcalculator.so" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

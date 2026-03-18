@@ -1,7 +1,20 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace SystemProgramming;
+
+internal static class NativeMethods
+{
+    [DllImport("libcalculator.so", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint CreateCalculatorObject();
+
+    [DllImport("libcalculator.so", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void DeleteCalculatorObject(nint obj);
+
+    [DllImport("libcalculator.so", EntryPoint = "Add", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int AddNumbers(nint obj, int a, int b);
+}
 
 internal class ProcessDemo
 {
@@ -17,6 +30,9 @@ internal class ProcessDemo
             Console.WriteLine("3 - GetProcessByPid");
             Console.WriteLine("4 - CreateProcess");
             Console.WriteLine("5 - KillProcess");
+            Console.WriteLine("6 - CallTestProgram");
+            Console.WriteLine("7 - WriteStringToTextFile");
+            Console.WriteLine("8 - CallCalculatorLibrary");
             Console.WriteLine("0 - Exit");
             Console.Write("Choose: ");
 
@@ -39,6 +55,15 @@ internal class ProcessDemo
                     break;
                 case '5':
                     KillProcess();
+                    break;
+                case '6':
+                    CallTestProgram();
+                    break;
+                case '7':
+                    WriteStringToTextFile();
+                    break;
+                case '8':
+                    CallCalculatorLibrary();
                     break;
                 case '0':
                     Console.WriteLine("Exit");
@@ -193,6 +218,127 @@ internal class ProcessDemo
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+            }
+        }
+    }
+
+    private void CallTestProgram()
+    {
+        string exePath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "TestProgram",
+            "bin",
+            "Debug",
+            "net10.0",
+            "TestProgram.dll");
+        Console.WriteLine("Enter arg (hi, bye, etc..):");
+        string arg = Console.ReadLine() ?? "hi";
+        ProcessStartInfo processInfo = new ProcessStartInfo()
+        {
+            FileName = "dotnet",
+            Arguments = $"\"{exePath}\" {arg}",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        using (Process process = new Process())
+        {
+            process.StartInfo = processInfo;
+
+            if (!File.Exists(exePath))
+            {
+                Console.WriteLine($"File not found: {exePath}");
+                return;
+            }
+
+            process.Start();
+            string output = process.StandardOutput.ReadToEnd();
+            string errors = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            Console.WriteLine($"Result: {output.Trim()}");
+
+            if (!string.IsNullOrWhiteSpace(errors))
+            {
+                Console.WriteLine($"Errors: {errors.Trim()}");
+            }
+        }
+    }
+
+    private void WriteStringToTextFile()
+    {
+        Console.Write("Enter text: ");
+        string text = Console.ReadLine() ?? string.Empty;
+
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "note.txt");
+        File.WriteAllText(filePath, text);
+        Console.WriteLine($"Saved to: {filePath}");
+
+        try
+        {
+            ProcessStartInfo startInfo = OperatingSystem.IsWindows()
+                ? new ProcessStartInfo
+                {
+                    FileName = "notepad.exe",
+                    Arguments = $"\"{filePath}\"",
+                    UseShellExecute = true
+                }
+                : new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = $"\"{filePath}\"",
+                    UseShellExecute = false
+                };
+
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private void CallCalculatorLibrary()
+    {
+        Console.Write("Enter first number: ");
+        if (!int.TryParse(Console.ReadLine(), out int left))
+        {
+            Console.WriteLine("Invalid first number");
+            return;
+        }
+
+        Console.Write("Enter second number: ");
+        if (!int.TryParse(Console.ReadLine(), out int right))
+        {
+            Console.WriteLine("Invalid second number");
+            return;
+        }
+
+        nint calculator = 0;
+
+        try
+        {
+            calculator = NativeMethods.CreateCalculatorObject();
+
+            if (calculator == 0)
+            {
+                Console.WriteLine("Calculator object was not created");
+                return;
+            }
+
+            int result = NativeMethods.AddNumbers(calculator, left, right);
+            Console.WriteLine($"Result: {left} + {right} = {result}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            if (calculator != 0)
+            {
+                NativeMethods.DeleteCalculatorObject(calculator);
             }
         }
     }
