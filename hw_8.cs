@@ -34,7 +34,7 @@ internal static class Hw8
         }
     }
 
-    public static void Main()
+    public static void Run()
     {
         Thread[] threads = new Thread[5];
 

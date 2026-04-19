@@ -1,0 +1,177 @@
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace SystemProgramming;
+
+internal class Hw9ArticlesDemo
+{
+    private readonly ArticleApiClient _apiClient;
+
+    public Hw9ArticlesDemo(string baseUrl = "http://localhost:5000/api/")
+    {
+        _apiClient = new ArticleApiClient(baseUrl);
+    }
+
+    public async Task RunAsync()
+    {
+        try
+        {
+            List<Article> articles = await _apiClient.GetAllArticlesAsync();
+            Console.WriteLine($"Articles on server: {articles.Count}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API request failed: {ex.Message}");
+        }
+    }
+}
+
+internal class ArticleApiClient
+{
+    private static readonly HttpClient HttpClient = new();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private readonly string _articlesUrl;
+
+    public ArticleApiClient(string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            throw new ArgumentException("Base URL cannot be empty.", nameof(baseUrl));
+        }
+
+        _articlesUrl = $"{baseUrl.TrimEnd('/')}/articles";
+    }
+
+    public async Task<List<Article>> GetAllArticlesAsync()
+    {
+        using HttpResponseMessage response = await HttpClient.GetAsync(_articlesUrl);
+        response.EnsureSuccessStatusCode();
+
+        string json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<List<Article>>(json, JsonOptions) ?? new List<Article>();
+    }
+
+    public async Task<Article?> GetArticleByIdAsync(int id)
+    {
+        using HttpResponseMessage response = await HttpClient.GetAsync($"{_articlesUrl}/{id}");
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        string json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<Article>(json, JsonOptions);
+    }
+
+    public Task<List<Article>> SearchByTitleAsync(string title)
+    {
+        return SearchByFieldAsync("title", title);
+    }
+
+    public Task<List<Article>> SearchByAuthorAsync(string author)
+    {
+        return SearchByFieldAsync("author", author);
+    }
+
+    public async Task<List<Article>> SearchByFieldAsync(string fieldName, string value)
+    {
+        if (string.IsNullOrWhiteSpace(fieldName))
+        {
+            throw new ArgumentException("Field name cannot be empty.", nameof(fieldName));
+        }
+
+        string encodedValue = Uri.EscapeDataString(value ?? string.Empty);
+        string requestUrl = $"{_articlesUrl}?{fieldName}={encodedValue}";
+
+        using HttpResponseMessage response = await HttpClient.GetAsync(requestUrl);
+        response.EnsureSuccessStatusCode();
+
+        string json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<List<Article>>(json, JsonOptions) ?? new List<Article>();
+    }
+
+    public async Task<int?> AddArticleAsync(Article article)
+    {
+        string json = JsonSerializer.Serialize(article, JsonOptions);
+        using var data = new StringContent(json, Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await HttpClient.PostAsync(_articlesUrl, data);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        string result = await response.Content.ReadAsStringAsync();
+        Article? createdArticle = JsonSerializer.Deserialize<Article>(result, JsonOptions);
+        return createdArticle?.Id;
+    }
+
+    public async Task<bool> DeleteArticleAsync(int id)
+    {
+        using HttpResponseMessage response = await HttpClient.DeleteAsync($"{_articlesUrl}/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> PatchArticleAsync(int id, ArticlePatch patch)
+    {
+        string json = JsonSerializer.Serialize(patch, JsonOptions);
+        using var data = new StringContent(json, Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"{_articlesUrl}/{id}")
+        {
+            Content = data
+        };
+
+        using HttpResponseMessage response = await HttpClient.SendAsync(request);
+        return response.IsSuccessStatusCode;
+    }
+}
+
+internal class Article
+{
+    [JsonPropertyName("id")]
+    public int? Id { get; init; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; init; } = string.Empty;
+
+    [JsonPropertyName("image")]
+    public string? Image { get; init; }
+
+    [JsonPropertyName("author")]
+    public string Author { get; init; } = string.Empty;
+
+    [JsonPropertyName("date")]
+    public DateTime Date { get; init; }
+}
+
+internal class ArticlePatch
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("image")]
+    public string? Image { get; init; }
+
+    [JsonPropertyName("author")]
+    public string? Author { get; init; }
+
+    [JsonPropertyName("date")]
+    public DateTime? Date { get; init; }
+}

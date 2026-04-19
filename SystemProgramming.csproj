@@ -9,17 +9,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="hw_9" />
     <Compile Remove="TestProgram/**/*.cs" />
     <Compile Remove="TestProgram/obj/**/*.cs" />
     <Compile Remove="CalculatorClient/**/*.cs" />
     <Compile Remove="CalculatorClient/obj/**/*.cs" />
+    <Compile Remove="ArticlesApi/**/*.cs" />
+    <Compile Remove="ArticlesApi/obj/**/*.cs" />
     <EmbeddedResource Remove="TestProgram/**" />
     <EmbeddedResource Remove="CalculatorClient/**" />
+    <EmbeddedResource Remove="ArticlesApi/**" />
     <None Remove="TestProgram/**" />
     <None Remove="CalculatorClient/**" />
+    <None Remove="ArticlesApi/**" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="NativeLibrary/build/libcalculator.so" Link="libcalculator.so" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="NativeLibrary/build/libcalculator.so"
+          Link="libcalculator.so"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('NativeLibrary/build/libcalculator.so')" />
   </ItemGroup>
 </Project>
